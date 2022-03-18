@@ -1,31 +1,25 @@
-from autogluon.tabular import TabularDataset
 from stack_info_leak.augment_oof import fix_v2
+from stack_info_leak.data_utils import get_dataset
 from stack_info_leak.benchmark_utils import run_experiment
 
 import logging
-
 
 logger = logging.getLogger(__name__)
 
 
 if __name__ == '__main__':
-    label = 'Delay'
+    dataset = 'santander_customer_satisfaction'
 
-    path_prefix = '../../data/airlines/'
-    path_train = path_prefix + 'train_data.csv'
-    path_test = path_prefix + 'test_data.csv'
-    from autogluon.core.metrics import roc_auc
-    eval_metric = roc_auc
-    problem_type = 'binary'
+    train_data, test_data, metadata = get_dataset(dataset=dataset)
+    label = metadata['label']
+    problem_type = metadata['problem_type']
+    eval_metric = metadata['eval_metric']
 
     sample = 5000  # Number of rows to use to train
     sample_test = 20000  # Number of rows to use to test
-    train_data = TabularDataset(path_train)
-    #
+
     if sample is not None and (sample < len(train_data)):
         train_data = train_data.sample(n=sample, random_state=0).reset_index(drop=True)
-    #
-    test_data = TabularDataset(path_test)
 
     if sample_test is not None and (sample_test < len(test_data)):
         test_data = test_data.sample(n=sample_test, random_state=0).reset_index(drop=True)

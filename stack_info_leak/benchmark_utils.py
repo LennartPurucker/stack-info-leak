@@ -11,13 +11,14 @@ def run_experiment(
         label,
         eval_metric,
         strategy_name,
-        strategy_func):
+        strategy_func,
+        problem_type=None):
     l1_oof_og, l1_oof, l2_oof, y, y_test, l1_test_pred_proba, l2_test_pred_proba = template(
         train_data=train_data,
         test_data=test_data,
         label=label,
         metric=eval_metric,
-        problem_type=None,
+        problem_type=problem_type,
         update_l1_oof_func=strategy_func,
         update_l1_oof_func_kwargs=None,
     )
@@ -27,6 +28,10 @@ def run_experiment(
     l1_score_test = eval_metric(y_test, l1_test_pred_proba)
     l2_score_oof = eval_metric(y, l2_oof)
     l2_score_test = eval_metric(y_test, l2_test_pred_proba)
+    if l1_score_oof_og >= l2_score_oof:
+        score_test = l1_score_test
+    else:
+        score_test = l2_score_test
 
     result_dict = dict(
         strategy_name=strategy_name,
@@ -35,5 +40,6 @@ def run_experiment(
         l1_score_test=l1_score_test,
         l2_score_oof=l2_score_oof,
         l2_score_test=l2_score_test,
+        score_test=score_test,
     )
     return result_dict

@@ -35,6 +35,7 @@ if __name__ == '__main__':
             eval_metric=eval_metric,
             strategy_name=strategy_name,
             strategy_func=strategy_func,
+            problem_type=problem_type,
         )
         results_list.append(result_dict)
 

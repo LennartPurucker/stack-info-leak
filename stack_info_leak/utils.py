@@ -53,12 +53,10 @@ def prepare_data(train_data, test_data, label, problem_type=None):
 
 
 def fit_l1_model(X, y, metric, problem_type):
-    model_base = RFModel(eval_metric=metric, problem_type=problem_type)
-    # model_base = XTModel(eval_metric=metric, problem_type=problem_type)
-    # model_base = KNNModel(eval_metric=metric, problem_type=problem_type)
     l1_model = BaggedEnsembleModel(
         # hyperparameters={'use_child_oof': True},
-        model_base=model_base,
+        model_base=RFModel,
+        model_base_kwargs=dict(eval_metric=metric, problem_type=problem_type),
         random_state=1
     )
     l1_model.fit(X=X, y=y, k_fold=10)
@@ -66,12 +64,10 @@ def fit_l1_model(X, y, metric, problem_type):
 
 
 def fit_l2_model(X, y, metric, problem_type):
-    # model_base = LGBModel(eval_metric=metric, problem_type=problem_type)
-    model_base = RFModel(eval_metric=metric, problem_type=problem_type)
-    # model_base = XGBoostModel(eval_metric=metric, problem_type=problem_type)
     l2_model = BaggedEnsembleModel(
-        hyperparameters={'use_child_oof': True},
-        model_base=model_base,
+        # hyperparameters={'use_child_oof': True},
+        model_base=RFModel,
+        model_base_kwargs=dict(eval_metric=metric, problem_type=problem_type),
         random_state=2
     )
     l2_model.fit(X=X, y=y, k_fold=10)
