@@ -2,7 +2,7 @@ import logging
 
 from autogluon.tabular import TabularDataset
 from autogluon.common.savers import save_pd
-from autogluon.core.metrics import roc_auc
+from autogluon.core.metrics import accuracy, roc_auc
 from autogluon.core.utils import generate_train_test_split_combined_X_y
 
 logger = logging.getLogger(__name__)
@@ -18,6 +18,15 @@ DATASETS = dict(
         problem_type='binary',
         label='class',
     ),
+    airlines=dict(
+        format='s3',
+        train_path='s3://autogluon/datasets/leakage/airlines/train_data.csv',
+        test_path='s3://autogluon/datasets/leakage/airlines/test_data.csv',
+        cache=True,
+        eval_metric=roc_auc,
+        problem_type='binary',
+        label='Delay',
+    ),
     santander_customer_satisfaction=dict(
         format='s3',
         train_path='s3://autogluon/datasets/santander-customer-satisfaction/train.csv',
@@ -27,6 +36,15 @@ DATASETS = dict(
         problem_type='binary',
         label='TARGET',
         drop_columns=['ID'],
+    ),
+    titanic=dict(
+        format='s3',
+        train_path='s3://autogluon/datasets/titanic/train.csv',
+        test_size=0.5,
+        cache=True,
+        eval_metric=accuracy,
+        problem_type='binary',
+        label='Survived',
     ),
 )
 
@@ -47,13 +65,21 @@ def load_dataset_and_cache(path, path_cache=None, save_cache=True):
     return data
 
 
-def get_dataset(dataset: str):
+def get_dataset(dataset: str, sample=None, sample_test=None):
+    train_data, test_data, metadata = _get_dataset(dataset=dataset)
+    if sample is not None and (sample < len(train_data)):
+        train_data = train_data.sample(n=sample, random_state=0).reset_index(drop=True)
+    if sample_test is not None and (sample_test < len(test_data)):
+        test_data = test_data.sample(n=sample_test, random_state=0).reset_index(drop=True)
+    return train_data, test_data, metadata
+
+def _get_dataset(dataset: str):
     if dataset not in DATASETS:
         raise AssertionError(f'{dataset} not in valid datasets: {list(DATASETS.keys())}')
     d = DATASETS[dataset]
     if d['format'] == 's3':
         train_data = load_dataset_and_cache(path=d['train_path'], path_cache=f'datasets/{dataset}/train_data.csv', save_cache=d['cache'])
-        if 'test_data' in d:
+        if 'test_path' in d:
             test_data = load_dataset_and_cache(path=d['test_path'], path_cache=f'datasets/{dataset}/test_data.csv', save_cache=d['cache'])
         else:
             train_data, test_data = generate_train_test_split_combined_X_y(data=train_data,

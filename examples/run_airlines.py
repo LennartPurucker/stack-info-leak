@@ -1,5 +1,5 @@
 from autogluon.tabular import TabularDataset
-from stack_info_leak.augment_oof import fix_v2
+from stack_info_leak.augment_oof import add_noise_search
 from stack_info_leak.benchmark_utils import run_experiment
 
 import logging
@@ -31,7 +31,7 @@ if __name__ == '__main__':
         test_data = test_data.sample(n=sample_test, random_state=0).reset_index(drop=True)
 
     results_list = []
-    for strategy_name, strategy_func in [('Default', None), ('AddNoiseL1', fix_v2)]:
+    for strategy_name, strategy_func in [('Default', None), ('AddNoiseL1', add_noise_search)]:
         print(f'Strategy: {strategy_name}')
         result_dict = run_experiment(
             train_data=train_data,

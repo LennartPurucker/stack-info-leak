@@ -1,16 +1,18 @@
+import logging
+
+import pandas as pd
+
 from stack_info_leak.augment_oof import add_noise_search, add_noise
 from stack_info_leak.data_utils import get_dataset
 from stack_info_leak.benchmark_utils import run_experiment
-import pandas as pd
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 if __name__ == '__main__':
-    dataset = 'santander_customer_satisfaction'
+    dataset = 'titanic'
 
-    train_data, test_data, metadata = get_dataset(dataset=dataset, sample=10000)
+    train_data, test_data, metadata = get_dataset(dataset=dataset)
     label = metadata['label']
     problem_type = metadata['problem_type']
     eval_metric = metadata['eval_metric']
@@ -22,12 +24,12 @@ if __name__ == '__main__':
     results_list = []
     for strategy_name, strategy_func in [
         ('Default', None),
-        ('AddNoise', add_noise_search),
-        # ('AddNoise_0.01', (add_noise, {'noise_scale': 0.01})),
-        # ('AddNoise_0.1', (add_noise, {'noise_scale': 0.1})),
-        # ('AddNoise_0.2', (add_noise, {'noise_scale': 0.2})),
-        # ('AddNoise_0.5', (add_noise, {'noise_scale': 0.5})),
-        # ('AddNoise_1.0', (add_noise, {'noise_scale': 1})),
+        # ('AddNoise', add_noise_search),
+        ('AddNoise_0.01', (add_noise, {'noise_scale': 0.01})),
+        ('AddNoise_0.1', (add_noise, {'noise_scale': 0.1})),
+        ('AddNoise_0.2', (add_noise, {'noise_scale': 0.2})),
+        ('AddNoise_0.5', (add_noise, {'noise_scale': 0.5})),
+        ('AddNoise_1.0', (add_noise, {'noise_scale': 1})),
     ]:
         print(f'Strategy: {strategy_name}')
         result_dict = run_experiment(
