@@ -156,4 +156,11 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
     l2_oof = l2_ensemble.predict_proba([artifact['oof'] for artifact in l2_model_artifacts])
 
     # return L1 OOF, L1 OOF Modified, L2 OOF, y, metadata
-    return l1_oof_og, l1_oof, l2_oof, y, y_test, l1_test_pred_proba, l2_test_pred_proba
+    return (l1_oof_og,
+            l1_oof,
+            l2_oof,
+            y,
+            y_test,
+            l1_test_pred_proba,
+            l2_test_pred_proba,
+            )
