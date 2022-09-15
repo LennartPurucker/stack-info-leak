@@ -70,7 +70,7 @@ def add_noise_search(y, l1_oof, problem_type, metric):
         train_fn,
         search_space=search_space,
         resource={'num_cpus': 'all', 'num_gpus': 0},
-        num_trials=100,
+        num_trials=20,
         time_attr='epoch',
         checkpoint=None
     )
@@ -104,6 +104,60 @@ def add_noise(y, l1_oof, problem_type, metric, noise_scale=0.01):
     l1_oof_with_noise = l1_oof + oof_noise
 
     return l1_oof_with_noise
+
+
+def add_noise_via_swap(y, l1_oof, problem_type, metric, strength=0.1):
+    a = pd.Series(l1_oof)
+    b = pd.concat([a, y.reset_index(drop=True)], axis=1)
+    c = b.sort_values(by=0)
+    c['_is_swapped'] = 0
+    d = c.copy()
+
+    len_c = len(c)
+    swap_max = np.ceil(len_c * strength)
+    rand_vals = np.random.randint(1, swap_max, len_c)
+
+    for j in range(len_c):
+        for i, pos in [(j, True), (j, False)]:
+            if pos:
+                i_swap = i + rand_vals[i]
+            else:
+                i = -i - 1
+                i_swap = i - rand_vals[i]
+
+            if i_swap >= len_c or i_swap < -len_c:
+                continue
+            if d.iloc[i, 2] != 0:
+                continue
+            if d.iloc[i_swap, 2] != 0:
+                continue
+            v1 = d.iloc[i, 0]
+            v2 = d.iloc[i_swap, 0]
+            d.iloc[i, 0] = v2
+            d.iloc[i_swap, 0] = v1
+            d.iloc[i, 2] = 1
+            d.iloc[i_swap, 2] = 1
+
+    out = d[0].sort_index().to_numpy()
+    return out
+
+
+def add_noise_via_dropout(y, l1_oof, problem_type, metric, dropout=0.1):
+    m = np.mean(l1_oof)
+    a = pd.Series(l1_oof)
+    b = pd.concat([a, y.reset_index(drop=True)], axis=1)
+    b['_is_dropout'] = 0
+    d = b.copy()
+    len_c = len(b)
+    rand_vals = np.random.random(len_c)
+
+    for i in range(len_c):
+        if rand_vals[i] <= dropout:
+            d.iloc[i, 0] = m
+            d.iloc[i, 2] = 1
+
+    out = d[0].to_numpy()
+    return out
 
 
 # TODO: CHECK CONSISTENCY AS A SEPARATE METRIC FROM L2 OOF score
