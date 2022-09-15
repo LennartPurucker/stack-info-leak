@@ -1,9 +1,13 @@
 import logging
 
+import numpy as np
+import pandas as pd
+
 from autogluon.tabular import TabularDataset
 from autogluon.common.savers import save_pd
 from autogluon.core.metrics import accuracy, roc_auc
-from autogluon.core.utils import generate_train_test_split_combined_X_y
+# from autogluon.core.utils import generate_train_test_split_combined
+from .split_utils import generate_train_test_split_combined
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +86,7 @@ def _get_dataset(dataset: str):
         if 'test_path' in d:
             test_data = load_dataset_and_cache(path=d['test_path'], path_cache=f'datasets/{dataset}/test_data.csv', save_cache=d['cache'])
         else:
-            train_data, test_data = generate_train_test_split_combined_X_y(data=train_data,
+            train_data, test_data = generate_train_test_split_combined(data=train_data,
                                                                            label=d['label'],
                                                                            problem_type=d['problem_type'],
                                                                            test_size=d['test_size'],
