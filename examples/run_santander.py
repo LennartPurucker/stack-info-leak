@@ -1,4 +1,4 @@
-from stack_info_leak.augment_oof import add_noise_search, add_noise
+from stack_info_leak.augment_oof import add_noise_search, add_noise, add_noise_via_swap, add_noise_via_dropout
 from stack_info_leak.data_utils import get_dataset
 from stack_info_leak.benchmark_utils import run_experiment
 import pandas as pd
@@ -16,13 +16,15 @@ if __name__ == '__main__':
     eval_metric = metadata['eval_metric']
 
     from stack_info_leak.model_utils import rf_oob_config2
-    l1_config = rf_oob_config2(eval_metric, problem_type, random_state=1)
-    l2_config = rf_oob_config2(eval_metric, problem_type, random_state=2)
+    l1_config = rf_oob_config2(eval_metric, problem_type)
+    l2_config = rf_oob_config2(eval_metric, problem_type)
 
     results_list = []
     for strategy_name, strategy_func in [
         ('Default', None),
         ('AddNoise', add_noise_search),
+        ('AddSwap', add_noise_via_swap),
+        ('AddDropout', add_noise_via_dropout),
         # ('AddNoise_0.01', (add_noise, {'noise_scale': 0.01})),
         # ('AddNoise_0.1', (add_noise, {'noise_scale': 0.1})),
         # ('AddNoise_0.2', (add_noise, {'noise_scale': 0.2})),

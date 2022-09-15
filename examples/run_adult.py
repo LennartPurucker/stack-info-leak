@@ -16,6 +16,10 @@ if __name__ == '__main__':
     problem_type = metadata['problem_type']
     eval_metric = metadata['eval_metric']
 
+    from stack_info_leak.model_utils import rf_oob_config2
+    l1_config = rf_oob_config2(eval_metric, problem_type)
+    l2_config = rf_oob_config2(eval_metric, problem_type)
+
     results_list = []
     for strategy_name, strategy_func in [('Default', None), ('AddNoiseL1', add_noise_search)]:
         print(f'Strategy: {strategy_name}')
@@ -26,6 +30,8 @@ if __name__ == '__main__':
             eval_metric=eval_metric,
             strategy_name=strategy_name,
             strategy_func=strategy_func,
+            l1_config=l1_config,
+            l2_config=l2_config,
             problem_type=problem_type,
         )
         results_list.append(result_dict)
