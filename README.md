@@ -14,3 +14,21 @@ Try it out with the examples:
 ```bash
 python examples/run_santander.py
 ```
+
+## Stack info leakage correction techniques
+
+### Default
+
+No stack info leakage correction
+
+### AddNoise
+
+Adds random noise to all out-of-fold predictions of the L1 models
+
+### AddSwap
+
+Swaps a proportion of out-of-fold predictions of the L1 models randomly across rows
+
+### AddDropout
+
+Drops a proportion of out-of-fold predictions of the L1 models randomly (replaced with constant predictor value)

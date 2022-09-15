@@ -27,7 +27,7 @@ def add_noise_search(y, l1_oof, problem_type, metric):
     def train_fn(args, reporter):
         noise_scale = args['noise_scale']
         # for noise_scale in [0, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5]:
-        rf = RFModel(path='', name='', problem_type=problem_type, eval_metric=metric, hyperparameters={'n_estimators': 300})
+        rf = RFModel(path='', name='', problem_type=problem_type, eval_metric=metric, hyperparameters={'n_estimators': 50})
         # rf = LinearModel(path='', name='', problem_type=problem_type, eval_metric=metric)
         # rf = KNNModel(path='', name='', problem_type=problem_type, eval_metric=metric, hyperparameters={'weights': 'distance'})
         # rf = LGBModel(path='', name='', problem_type=problem_type, eval_metric=metric)

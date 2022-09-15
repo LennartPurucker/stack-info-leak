@@ -85,6 +85,7 @@ def get_dataset(dataset: str, sample=None, sample_test=None):
         test_data = test_data.sample(n=sample_test, random_state=0).reset_index(drop=True)
     return train_data, test_data, metadata
 
+
 def _get_dataset(dataset: str):
     if dataset not in DATASETS:
         raise AssertionError(f'{dataset} not in valid datasets: {list(DATASETS.keys())}')
@@ -117,4 +118,3 @@ def _get_dataset(dataset: str):
         return train_data, test_data, d.copy()
     else:
         raise AssertionError(f'Invalid format: {d["format"]}')
-
