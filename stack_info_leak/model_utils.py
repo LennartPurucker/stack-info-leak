@@ -6,17 +6,7 @@ from autogluon.tabular.models import LGBModel, RFModel, KNNModel, XGBoostModel, 
 logger = logging.getLogger(__name__)
 
 
-def rf_oob_config(eval_metric, problem_type):
-    l1_model = BaggedEnsembleModel(
-        hyperparameters={'use_child_oof': False},
-        model_base=RFModel,
-        model_base_kwargs=dict(eval_metric=eval_metric, problem_type=problem_type),
-        random_state=1
-    )
-    return l1_model
-
-
-def rf_oob_config1(eval_metric, problem_type, random_state):
+def rf_oob_config1(eval_metric, problem_type):
     model_cls = BaggedEnsembleModel
 
     model_configs = []
@@ -25,7 +15,6 @@ def rf_oob_config1(eval_metric, problem_type, random_state):
             hyperparameters={'use_child_oof': False},
             model_base=model_child,
             model_base_kwargs=dict(eval_metric=eval_metric, problem_type=problem_type),
-            random_state=random_state,
         )
         fit_kwargs = dict(k_fold=8)
         model_config = dict(
@@ -37,7 +26,7 @@ def rf_oob_config1(eval_metric, problem_type, random_state):
     return model_configs
 
 
-def rf_oob_config2(eval_metric, problem_type, random_state):
+def rf_oob_config2(eval_metric, problem_type):
     model_cls = BaggedEnsembleModel
 
     model_configs = []
@@ -54,7 +43,6 @@ def rf_oob_config2(eval_metric, problem_type, random_state):
             # hyperparameters={'use_child_oof': False},
             model_base=model_child,
             model_base_kwargs=dict(eval_metric=eval_metric, problem_type=problem_type),
-            random_state=random_state,
         )
         fit_kwargs = dict(k_fold=8)
         model_config = dict(
