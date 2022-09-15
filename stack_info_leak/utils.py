@@ -86,7 +86,7 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
         fit_kwargs = model_config['fit_kwargs']
         print(model_cls)
 
-        l1_model = model_cls(**model_kwargs).fit(X=X, y=y, **fit_kwargs)
+        l1_model = model_cls(random_state=0, **model_kwargs).fit(X=X, y=y, **fit_kwargs)
 
         # get L1 OOF
         l1_oof_og = l1_model.get_oof_pred_proba()
@@ -135,7 +135,7 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
         fit_kwargs = model_config['fit_kwargs']
         print(model_cls)
 
-        l2_model = model_cls(**model_kwargs).fit(X=X_l2, y=y, **fit_kwargs)
+        l2_model = model_cls(random_state=1, **model_kwargs).fit(X=X_l2, y=y, **fit_kwargs)
 
         # get L1 OOF
         l2_oof = l2_model.get_oof_pred_proba()
