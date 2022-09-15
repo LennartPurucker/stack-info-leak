@@ -50,6 +50,14 @@ DATASETS = dict(
         problem_type='binary',
         label='Survived',
     ),
+    random_1000=dict(
+        format='random',
+        samples=2000,
+        test_size=0.5,
+        eval_metric=roc_auc,
+        problem_type='binary',
+        label='label',
+    ),
 )
 
 
@@ -87,13 +95,25 @@ def _get_dataset(dataset: str):
             test_data = load_dataset_and_cache(path=d['test_path'], path_cache=f'datasets/{dataset}/test_data.csv', save_cache=d['cache'])
         else:
             train_data, test_data = generate_train_test_split_combined(data=train_data,
-                                                                           label=d['label'],
-                                                                           problem_type=d['problem_type'],
-                                                                           test_size=d['test_size'],
-                                                                           random_state=0)
+                                                                       label=d['label'],
+                                                                       problem_type=d['problem_type'],
+                                                                       test_size=d['test_size'],
+                                                                       random_state=0)
         if 'drop_columns' in d:
             train_data = train_data.drop(columns=d['drop_columns'])
             test_data = test_data.drop(columns=d['drop_columns'])
+        return train_data, test_data, d.copy()
+    elif d['format'] == 'random':
+        np.random.seed(0)
+        samples = d['samples']  # Number of rows to use to train
+        feature = np.random.random(samples)
+        label = np.random.randint(0, 2, size=samples)
+        data = pd.DataFrame({'f': feature, d['label']: label})
+        train_data, test_data = generate_train_test_split_combined(data=data,
+                                                                   label=d['label'],
+                                                                   problem_type=d['problem_type'],
+                                                                   test_size=d['test_size'],
+                                                                   random_state=0)
         return train_data, test_data, d.copy()
     else:
         raise AssertionError(f'Invalid format: {d["format"]}')
