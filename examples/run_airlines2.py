@@ -23,17 +23,18 @@ if __name__ == '__main__':
 
     results_list = []
     for strategy_name, strategy_func in [
-        ('Default', None),
-        ('AddSwap_0.1', (add_noise_via_swap, {'strength': 0.1})),
-        ('AddSwap_0.2', (add_noise_via_swap, {'strength': 0.2})),
-        ('AddSwap_0.5', (add_noise_via_swap, {'strength': 0.5})),
-        ('AddSwap_0.9', (add_noise_via_swap, {'strength': 0.9})),
-        ('AddDropout_0.1', (add_noise_via_dropout, {'dropout': 0.1})),
-        ('AddDropout_0.2', (add_noise_via_dropout, {'dropout': 0.2})),
-        ('AddDropout_0.5', (add_noise_via_dropout, {'dropout': 0.5})),
-        ('AddDropout_0.9', (add_noise_via_dropout, {'dropout': 0.9})),
-        ('AddDropout_1.0', (add_noise_via_dropout, {'dropout': 1.0})),
+        # # ('AddSwap_0.1', (add_noise_via_swap, {'strength': 0.1})),
+        # # ('AddSwap_0.2', (add_noise_via_swap, {'strength': 0.2})),
+        # # ('AddSwap_0.5', (add_noise_via_swap, {'strength': 0.5})),
+        # # ('AddSwap_0.9', (add_noise_via_swap, {'strength': 0.9})),
+        # ('AddDropout_0.1', (add_noise_via_dropout, {'dropout': 0.1})),
+        # # ('AddDropout_0.2', (add_noise_via_dropout, {'dropout': 0.2})),
+        # # ('AddDropout_0.5', (add_noise_via_dropout, {'dropout': 0.5})),
+        # # ('AddDropout_0.9', (add_noise_via_dropout, {'dropout': 0.9})),
+        # # ('AddDropout_1.0', (add_noise_via_dropout, {'dropout': 1.0})),
         ('AddNoise', add_noise_search),
+        ('Default', None),
+
         # ('AddNoise_0.01', (add_noise, {'noise_scale': 0.01})),
         # ('AddNoise_0.1', (add_noise, {'noise_scale': 0.1})),
         # ('AddNoise_0.2', (add_noise, {'noise_scale': 0.2})),

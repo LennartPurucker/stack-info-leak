@@ -24,8 +24,8 @@ DATASETS = dict(
     ),
     airlines=dict(
         format='s3',
-        train_path='s3://autogluon/datasets/leakage/airlines/train_data.csv',
-        test_path='s3://autogluon/datasets/leakage/airlines/test_data.csv',
+        train_path='https://autogluon.s3.amazonaws.com/datasets/leakage/airlines/train_data.csv',
+        test_path='https://autogluon.s3.amazonaws.com/datasets/leakage/airlines/test_data.csv',
         cache=True,
         eval_metric=roc_auc,
         problem_type='binary',

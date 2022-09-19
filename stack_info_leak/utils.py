@@ -9,7 +9,11 @@ from autogluon.core.utils import compute_weighted_metric, get_pred_from_proba
 from autogluon.core.models import BaggedEnsembleModel
 from autogluon.tabular.models import LGBModel, RFModel, KNNModel, XGBoostModel, XTModel
 from autogluon.core.models.greedy_ensemble.ensemble_selection import EnsembleSelection
-
+from autogluon.core.utils.utils import CVSplitter
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import balanced_accuracy_score
+from sklearn.ensemble import RandomForestClassifier
 logger = logging.getLogger(__name__)
 
 
@@ -64,7 +68,8 @@ def fit_l2_model(X, y, metric, problem_type):
     return l2_model
 
 
-def template(train_data, test_data, label, metric, problem_type=None, update_l1_oof_func=None, l1_config=None, l2_config=None):
+def template(train_data, test_data, label, metric, problem_type=None, update_l1_oof_func=None, l1_config=None,
+             l2_config=None):
     set_logger_verbosity(0)
 
     update_l1_oof_func_kwargs = None
@@ -76,7 +81,8 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
             update_l1_oof_func_kwargs = dict()
 
     # prepare data
-    X, y, X_test, y_test, problem_type = prepare_data(train_data=train_data, test_data=test_data, label=label, problem_type=problem_type)
+    X, y, X_test, y_test, problem_type = prepare_data(train_data=train_data, test_data=test_data, label=label,
+                                                      problem_type=problem_type)
 
     # fit L1 models
     l1_model_artifacts = []
@@ -84,6 +90,7 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
         model_cls = model_config['model_cls']
         model_kwargs = model_config['model_kwargs']
         fit_kwargs = model_config['fit_kwargs']
+        k_fold = fit_kwargs["k_fold"]
         print(model_cls)
 
         l1_model = model_cls(random_state=0, **model_kwargs).fit(X=X, y=y, **fit_kwargs)
@@ -126,6 +133,31 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
     for i, artifact in enumerate(l1_model_artifacts):
         X_l2[f'__l1_pred_proba_{i}__'] = artifact['oof']
         X_test_l2[f'__l1_pred_proba_{i}__'] = artifact['test_pred_proba']
+
+    # --- New Test for fold distributions
+    # TODO idea: different folds for validation?
+    # - bet against a specific model (if different folds; or if all folds and model can bet against specific models)
+    #   - would be better than bet against all because it would make it more random in general
+    # - bet again all models of a fold (if all same folds)
+    # Maybe change random state (for oof and as consequence of validation) per base model
+    #   (this is similar to adding noise to the data)
+    X_l2_fold_pred = X_l2.copy()
+    fold_indicator = np.full(len(X), -1)
+    for fold_idx, (_, val_i) in enumerate(
+            CVSplitter(n_splits=k_fold, n_repeats=1, stratified=True, random_state=0).split(X, y)):
+        fold_indicator[val_i] = fold_idx
+
+    for model_config in l2_config:
+        model_cls = model_config['model_cls']
+        model_kwargs = model_config['model_kwargs']
+        fit_kwargs = model_config['fit_kwargs']
+        print("Fairness Test", model_cls)
+
+        f_X_train, f_X_test, f_y_train, f_y_test = train_test_split(X_l2_fold_pred, fold_indicator, test_size=0.33,
+                                                                    random_state=42, stratify=fold_indicator)
+        fairness_model = RandomForestClassifier(random_state=1).fit(f_X_train, f_y_train)
+        y_pred = fairness_model.predict(f_X_test)
+        print(balanced_accuracy_score(f_y_test, y_pred))
 
     # fit L2 models
     l2_model_artifacts = []
