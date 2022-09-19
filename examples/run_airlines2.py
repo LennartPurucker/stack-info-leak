@@ -1,4 +1,4 @@
-from stack_info_leak.augment_oof import add_noise_search, add_noise, add_noise_via_swap, add_noise_via_dropout
+from stack_info_leak.augment_oof import add_noise_search, add_noise, add_noise_via_swap, add_noise_via_dropout, make_oof_fair
 from stack_info_leak.data_utils import get_dataset
 from stack_info_leak.benchmark_utils import run_experiment
 import pandas as pd
@@ -32,8 +32,9 @@ if __name__ == '__main__':
         # # ('AddDropout_0.5', (add_noise_via_dropout, {'dropout': 0.5})),
         # # ('AddDropout_0.9', (add_noise_via_dropout, {'dropout': 0.9})),
         # # ('AddDropout_1.0', (add_noise_via_dropout, {'dropout': 1.0})),
-        ('AddNoise', add_noise_search),
+        ('MakeFair', make_oof_fair),
         ('Default', None),
+        ('AddNoise', add_noise_search),
 
         # ('AddNoise_0.01', (add_noise, {'noise_scale': 0.01})),
         # ('AddNoise_0.1', (add_noise, {'noise_scale': 0.1})),

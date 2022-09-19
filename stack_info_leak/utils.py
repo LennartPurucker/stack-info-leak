@@ -92,6 +92,8 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
         fit_kwargs = model_config['fit_kwargs']
         k_fold = fit_kwargs["k_fold"]
         print(model_cls)
+        print(model_kwargs)
+        print(fit_kwargs)
 
         l1_model = model_cls(random_state=0, **model_kwargs).fit(X=X, y=y, **fit_kwargs)
 
@@ -99,6 +101,16 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
         l1_oof_og = l1_model.get_oof_pred_proba()
         l1_oof = copy.deepcopy(l1_oof_og)
         l1_test_pred_proba = l1_model.predict_proba(X_test)
+
+
+        # Fairness data
+        _X = X.copy()
+        fold_indicator = np.full(len(X), -1)
+        for fold_idx, (_, val_i) in enumerate(
+                CVSplitter(n_splits=k_fold, n_repeats=1, stratified=True, random_state=0).split(X, y)):
+            fold_indicator[val_i] = fold_idx
+        update_l1_oof_func_kwargs["_X"] = _X.copy()
+        update_l1_oof_func_kwargs["fold_indicator"] = fold_indicator
 
         # update L1 OOF
         if update_l1_oof_func is not None:
@@ -117,6 +129,20 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
                 test_pred_proba=l1_test_pred_proba
             )
         )
+
+        # Individual fairness score
+        print("Start fold fairness test for model")
+        _X["oof"] = l1_oof
+
+        f_X_train, f_X_test, f_y_train, f_y_test = train_test_split(_X, fold_indicator, test_size=0.33,
+                                                                    random_state=42, stratify=fold_indicator)
+
+        # If we use passthroughs, with original features is more realistic because the additional noise added by these
+        # could make it harder.
+        fairness_model = RandomForestClassifier(random_state=1).fit(f_X_train, f_y_train)
+        y_pred = fairness_model.predict(f_X_test)
+        print("Fairness for this model's predictions:", balanced_accuracy_score(f_y_test, y_pred))
+
 
     l1_ensemble = EnsembleSelection(ensemble_size=100, problem_type=problem_type, metric=metric)
     l1_predictions = [artifact['oof_og'] for artifact in l1_model_artifacts]
@@ -142,22 +168,26 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
     # Maybe change random state (for oof and as consequence of validation) per base model
     #   (this is similar to adding noise to the data)
     X_l2_fold_pred = X_l2.copy()
+    f_cols = list(X)
     fold_indicator = np.full(len(X), -1)
     for fold_idx, (_, val_i) in enumerate(
             CVSplitter(n_splits=k_fold, n_repeats=1, stratified=True, random_state=0).split(X, y)):
         fold_indicator[val_i] = fold_idx
 
-    for model_config in l2_config:
-        model_cls = model_config['model_cls']
-        model_kwargs = model_config['model_kwargs']
-        fit_kwargs = model_config['fit_kwargs']
-        print("Fairness Test", model_cls)
+    print("Global Fairness Test")
 
-        f_X_train, f_X_test, f_y_train, f_y_test = train_test_split(X_l2_fold_pred, fold_indicator, test_size=0.33,
-                                                                    random_state=42, stratify=fold_indicator)
-        fairness_model = RandomForestClassifier(random_state=1).fit(f_X_train, f_y_train)
-        y_pred = fairness_model.predict(f_X_test)
-        print(balanced_accuracy_score(f_y_test, y_pred))
+    f_X_train, f_X_test, f_y_train, f_y_test = train_test_split(X_l2_fold_pred, fold_indicator, test_size=0.33,
+                                                                random_state=42, stratify=fold_indicator)
+
+    # If we use passthroughs, with original features is more realistic because the additional noise added by these
+    # could make it harder.
+    fairness_model = RandomForestClassifier(random_state=1).fit(f_X_train, f_y_train)
+    y_pred = fairness_model.predict(f_X_test)
+    print("With Original Features",balanced_accuracy_score(f_y_test, y_pred))
+
+    fairness_model = RandomForestClassifier(random_state=1).fit(f_X_train.drop(columns=f_cols), f_y_train)
+    y_pred = fairness_model.predict(f_X_test.drop(columns=f_cols))
+    print("W/o", balanced_accuracy_score(f_y_test, y_pred))
 
     # fit L2 models
     l2_model_artifacts = []
