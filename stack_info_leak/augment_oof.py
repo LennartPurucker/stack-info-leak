@@ -2,7 +2,8 @@ import logging
 
 import numpy as np
 import pandas as pd
-
+import copy
+from fairlearn.preprocessing import CorrelationRemover
 from autogluon.core.scheduler import LocalSequentialScheduler
 from autogluon.tabular.models import LGBModel, RFModel, LinearModel, KNNModel
 from autogluon.core.models import BaggedEnsembleModel
@@ -11,13 +12,14 @@ from .utils import score_with_y_pred_proba
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.isotonic import IsotonicRegression
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-
+from scipy.special import softmax
 logger = logging.getLogger(__name__)
 
 
 # FIXME: Only works for binary at present
-def add_noise_search(y, l1_oof, problem_type, metric, kwargs=None):
+def add_noise_search(y, l1_oof, l1_test_pred_proba, problem_type, metric, l1_repro_pred=None, **kwargs):
     # Train l2 model on l1_oof as only feature,
     # Add noise until l1_oof score == l2_oof score
     score_oof_kwargs = dict(y=y, problem_type=problem_type, metric=metric)
@@ -43,10 +45,14 @@ def add_noise_search(y, l1_oof, problem_type, metric, kwargs=None):
         oof_pred_proba += noise
 
         X_l2 = pd.Series(oof_pred_proba, name='l1').to_frame()
+        repro_X_l2 = pd.Series(l1_repro_pred, name="l1").to_frame()
 
         rf.fit(X=X_l2, y=y)
         l2_oof_pred_proba = rf.get_oof_pred_proba(X=X_l2, y=y)
-        # l2_oof_pred_proba = rf.predict_proba(X_l2)
+
+        # repro_X_l2_pred_proba = rf.get_oof_pred_proba(X=repro_X_l2, y=y)
+        # repro_score = score_with_y_pred_proba(y_pred_proba=repro_X_l2_pred_proba, **score_oof_kwargs)
+
         l2_score = score_with_y_pred_proba(y_pred_proba=l2_oof_pred_proba, **score_oof_kwargs)
         l1_score_val_noise = score_with_y_pred_proba(y_pred_proba=oof_pred_proba, **score_oof_kwargs)
         # print(f'noise: {noise_scale}')
@@ -97,20 +103,20 @@ def add_noise_search(y, l1_oof, problem_type, metric, kwargs=None):
 
     l1_oof_with_noise = l1_oof + oof_noise
 
-    return l1_oof_with_noise
+    return l1_oof_with_noise, l1_test_pred_proba
 
 
-def add_noise(y, l1_oof, problem_type, metric, noise_scale=0.01, kwargs=None):
+def add_noise(y, l1_oof,l1_test_pred_proba, problem_type, metric, noise_scale=0.01, **kwargs):
     noise_init = np.random.rand(len(l1_oof))
     oof_noise = noise_init
     oof_noise = oof_noise * noise_scale * 2
     oof_noise = oof_noise - np.mean(oof_noise)
     l1_oof_with_noise = l1_oof + oof_noise
 
-    return l1_oof_with_noise
+    return l1_oof_with_noise, l1_test_pred_proba
 
 
-def add_noise_via_swap(y, l1_oof, problem_type, metric, strength=0.1, kwargs=None):
+def add_noise_via_swap(y, l1_oof, l1_test_pred_proba, problem_type, metric, strength=0.1, **kwargs):
     a = pd.Series(l1_oof)
     b = pd.concat([a, y.reset_index(drop=True)], axis=1)
     c = b.sort_values(by=0)
@@ -143,10 +149,10 @@ def add_noise_via_swap(y, l1_oof, problem_type, metric, strength=0.1, kwargs=Non
             d.iloc[i_swap, 2] = 1
 
     out = d[0].sort_index().to_numpy()
-    return out
+    return out, l1_test_pred_proba
 
 
-def add_noise_via_dropout(y, l1_oof, problem_type, metric, dropout=0.1, kwargs=None):
+def add_noise_via_dropout(y, l1_oof,l1_test_pred_proba, problem_type, metric, dropout=0.1, **kwargs):
     m = np.mean(l1_oof)
     a = pd.Series(l1_oof)
     b = pd.concat([a, y.reset_index(drop=True)], axis=1)
@@ -161,7 +167,7 @@ def add_noise_via_dropout(y, l1_oof, problem_type, metric, dropout=0.1, kwargs=N
             d.iloc[i, 2] = 1
 
     out = d[0].to_numpy()
-    return out
+    return out,l1_test_pred_proba
 
 
 def eval_oof_fairness(l2_X, fold_indicator):
@@ -172,7 +178,7 @@ def eval_oof_fairness(l2_X, fold_indicator):
     fairness_score = balanced_accuracy_score(f_y_test, y_pred)
     return fairness_score
 
-def make_oof_fair(y, l1_oof, problem_type, metric, _X=None, fold_indicator=None, kwargs=None):
+def make_oof_fair(y, l1_oof,l1_test_pred_proba, problem_type, metric, _X=None, fold_indicator=None, **kwargs):
 
     # TODO Ideas
     #   - real fairness methods and other stuff (need to read up on it)
@@ -182,21 +188,61 @@ def make_oof_fair(y, l1_oof, problem_type, metric, _X=None, fold_indicator=None,
     # Try 1:
     # - standard scaler per fold? I do not think that this will fix it.
     #   underlying distribution should not change really.
-    new_oof = l1_oof.copy()
-    max_fold = np.max(fold_indicator)
-    for i in range(max_fold):
-        fold_instances = fold_indicator == i
-        new_oof[fold_instances] = MinMaxScaler().fit_transform(StandardScaler().fit_transform(new_oof[fold_instances].reshape(-1,1))).flatten()
+    # new_oof = l1_oof.copy()
+    # max_fold = np.max(fold_indicator)
+    # for i in range(max_fold):
+    #     fold_instances = fold_indicator == i
+    #     # new_oof[fold_instances] = MinMaxScaler().fit_transform(StandardScaler().fit_transform(new_oof[fold_instances].reshape(-1,1))).flatten()
+    #
+    #     if i == 0:
+    #         iser = IsotonicRegression(y_min=0, y_max=1, increasing="auto",out_of_bounds="clip")
+    #         new_oof[fold_instances] = iser.fit_transform(new_oof[fold_instances], y[fold_instances])
+    #     else:
+    #         new_oof[fold_instances] = iser.transform(new_oof[fold_instances])
+    # out = new_oof
 
-    print()
+    new_oof = copy.deepcopy(l1_oof)
+    new_test = copy.deepcopy(l1_test_pred_proba)
+    # t = pd.DataFrame()
+    # t["f"] = fold_indicator
+    # t["oof"] = new_oof
+    # x = CorrelationRemover(sensitive_feature_ids=["f"],alpha=1).fit_transform(t)
+
+    # Low association score but high overfitting, why the fuck?
+    # mask = new_oof >=0.5
+    # new_oof[mask] = 1.0
+    # new_oof[~mask] = 0.0
+    # mask = new_test >= 0.5
+    # new_test[mask] = 1.0
+    # new_test[~mask] = 0.0
+
+    out = new_oof
+    out2 = new_test
     # l2_X = _X.copy()
     # l2_X["oof"] = l1_oof
     # fairness = eval_oof_fairness(l2_X, fold_indicator)
 
+    # Round, reduces but not removes distrubtional differences
+    #   e.g. 0.7/0.3 vs. 0.8/0.2 is not removed.
+    #   Moreover. we lose potentially very useful information.
+    #   Overfits heavily because completely different data in the end
+    #   -> how is that possible?!!!
+    #   -> predicting fold association becomes harder but overfit higher, wtf is this?
+    #   -> need to round test data as well perhaps,
+    #out = np.around(l1_oof, 1)
 
-
-    return new_oof
+    # from scipy.special import softmax
+    # Softmax idea
+    # out = MinMaxScaler().fit_transform(softmax(l1_oof).reshape(-1,1)).flatten()
+    # this just scales again, does not change the distributions...
+    return out, out2
 
 # TODO: CHECK CONSISTENCY AS A SEPARATE METRIC FROM L2 OOF score
 #  If given 0.5 as prediction probability, what is pred proba of L2 model. Ideally L2 pred proba should increase consistently as L1 pred proba increases.
 # TODO: Sample 5 different random noise inits, average results for better quality
+
+
+#   strategy_name  score_test  l2_overfit  l1_score_test  l2_score_test  l1_score_oof  l2_score_oof  l1_score_oof_aug
+# -1  (variable)    AddNoise    0.531539    0.001864       0.531539       0.522807      0.525939      0.524671          0.494846
+# 1       Default    0.515847    0.047132       0.532794       0.515847      0.525939      0.562979          0.525939
+# 2      MakeFairFoldCalibration    0.522708    0.010853       0.531539       0.522708      0.525939       0.53356          0.500649

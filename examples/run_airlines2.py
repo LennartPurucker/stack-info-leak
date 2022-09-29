@@ -32,9 +32,9 @@ if __name__ == '__main__':
         # # ('AddDropout_0.5', (add_noise_via_dropout, {'dropout': 0.5})),
         # # ('AddDropout_0.9', (add_noise_via_dropout, {'dropout': 0.9})),
         # # ('AddDropout_1.0', (add_noise_via_dropout, {'dropout': 1.0})),
-        ('MakeFair', make_oof_fair),
-        ('Default', None),
-        ('AddNoise', add_noise_search),
+        #('MakeFair', make_oof_fair),
+        #('Default', None),
+         ('AddNoise', add_noise_search),
 
         # ('AddNoise_0.01', (add_noise, {'noise_scale': 0.01})),
         # ('AddNoise_0.1', (add_noise, {'noise_scale': 0.1})),
@@ -60,3 +60,9 @@ if __name__ == '__main__':
     results_df = pd.DataFrame(results_list)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 1000):
         print(results_df)
+
+
+"""Tmp Results to skip re-evaluation 
+
+
+"""

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 if __name__ == '__main__':
     label = 'Delay'
 
-    path_prefix = '../../data/airlines/'
+    path_prefix = './datasets/airlines/'
     path_train = path_prefix + 'train_data.csv'
     path_test = path_prefix + 'test_data.csv'
     from autogluon.core.metrics import roc_auc

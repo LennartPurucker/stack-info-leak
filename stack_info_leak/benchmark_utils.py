@@ -15,7 +15,7 @@ def run_experiment(
         l1_config,
         l2_config,
         problem_type=None,):
-    l1_oof_og, l1_oof, l2_oof, y, y_test, l1_test_pred_proba, l2_test_pred_proba = template(
+    l1_oof_og, l1_oof, l2_oof, y, y_test, l1_test_pred_proba, l2_test_pred_proba, fold_indicator = template(
         train_data=train_data,
         test_data=test_data,
         label=label,
@@ -25,6 +25,17 @@ def run_experiment(
         l1_config=l1_config,
         l2_config=l2_config,
     )
+
+    # Fair scores
+    print("Original L1 OOF")
+    score_with_y_pred_proba(y, l1_oof_og,metric=eval_metric, problem_type=problem_type,
+                            make_fair=True, sensitive_features=fold_indicator)
+    print("L1 OOF")
+    score_with_y_pred_proba(y, l1_oof, metric=eval_metric, problem_type=problem_type,
+                            make_fair=True, sensitive_features=fold_indicator)
+    print("L2 OOF")
+    score_with_y_pred_proba(y, l2_oof, metric=eval_metric, problem_type=problem_type,
+                            make_fair=True, sensitive_features=fold_indicator)
 
     l1_score_oof_og = score_with_y_pred_proba(y, l1_oof_og, metric=eval_metric, problem_type=problem_type)
     l1_score_oof = score_with_y_pred_proba(y, l1_oof, metric=eval_metric, problem_type=problem_type)

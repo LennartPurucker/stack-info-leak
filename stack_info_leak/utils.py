@@ -14,13 +14,25 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.ensemble import RandomForestClassifier
+from fairlearn.metrics import MetricFrame
+
+
 logger = logging.getLogger(__name__)
 
 
-def score_with_y_pred_proba(y, y_pred_proba, problem_type, metric, weights=None, quantile_levels=None):
+def score_with_y_pred_proba(y, y_pred_proba, problem_type, metric, weights=None, quantile_levels=None,
+                            make_fair=False, sensitive_features=None):
     if metric.needs_pred:
         y_pred_proba = get_pred_from_proba(y_pred_proba=y_pred_proba, problem_type=problem_type)
-    return compute_weighted_metric(y, y_pred_proba, metric, weights=None, quantile_levels=None)
+
+    if make_fair:
+
+        res = MetricFrame(metric=metric, y_true=y, y_pred=y_pred_proba, sensitive_features=sensitive_features)
+        print(res.by_group)
+        print(res.overall)
+        print(sum(res.by_group.values)/len(res.by_group.values))
+    else:
+        return compute_weighted_metric(y, y_pred_proba, metric, weights=None, quantile_levels=None)
 
 
 # TODO: Split into stages:
@@ -102,31 +114,39 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
         l1_oof = copy.deepcopy(l1_oof_og)
         l1_test_pred_proba = l1_model.predict_proba(X_test)
 
-
         # Fairness data
         _X = X.copy()
         fold_indicator = np.full(len(X), -1)
         for fold_idx, (_, val_i) in enumerate(
                 CVSplitter(n_splits=k_fold, n_repeats=1, stratified=True, random_state=0).split(X, y)):
             fold_indicator[val_i] = fold_idx
-        update_l1_oof_func_kwargs["_X"] = _X.copy()
-        update_l1_oof_func_kwargs["fold_indicator"] = fold_indicator
+
+            # Get reproduction score l1
+        l1_repro_pred = l1_model.predict_proba(X)
+        print("L1 Reproduction Score:", score_with_y_pred_proba(y, l1_repro_pred, problem_type, metric))
 
         # update L1 OOF
         if update_l1_oof_func is not None:
-            l1_oof = update_l1_oof_func(
+            update_l1_oof_func_kwargs["_X"] = _X.copy()
+            update_l1_oof_func_kwargs["fold_indicator"] = fold_indicator
+            update_l1_oof_func_kwargs["l1_repro_pred"] = l1_repro_pred
+
+            l1_oof, l1_test_pred_proba = update_l1_oof_func(
                 y=y,
                 l1_oof=l1_oof,
+                l1_test_pred_proba=l1_test_pred_proba,
                 metric=metric,
                 problem_type=problem_type,
                 **update_l1_oof_func_kwargs,
             )
 
+
         l1_model_artifacts.append(
             dict(
                 oof=l1_oof,
                 oof_og=l1_oof_og,
-                test_pred_proba=l1_test_pred_proba
+                test_pred_proba=l1_test_pred_proba,
+                l1_repro_pred=l1_repro_pred
             )
         )
 
@@ -154,11 +174,14 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
 
     # fit L2 model
     X_l2 = X.copy()
+    repro_X_l2 = X.copy()
     X_test_l2 = X_test.copy()
 
     for i, artifact in enumerate(l1_model_artifacts):
         X_l2[f'__l1_pred_proba_{i}__'] = artifact['oof']
         X_test_l2[f'__l1_pred_proba_{i}__'] = artifact['test_pred_proba']
+        repro_X_l2[f'__l1_pred_proba_{i}__'] = artifact['l1_repro_pred']
+
 
     # --- New Test for fold distributions
     # TODO idea: different folds for validation?
@@ -209,6 +232,10 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
                 test_pred_proba=l2_test_pred_proba,
             )
         )
+        # Reproduction score
+        print("L2 OOF Reproduction Score:", score_with_y_pred_proba(y, l2_model.predict_proba(X_l2), problem_type, metric))
+        print("L2 True Reproduction Score:", score_with_y_pred_proba(y, l2_model.predict_proba(repro_X_l2), problem_type, metric))
+
 
     l2_ensemble = EnsembleSelection(ensemble_size=100, problem_type=problem_type, metric=metric)
     l2_predictions = [artifact['oof'] for artifact in l2_model_artifacts]
@@ -225,4 +252,5 @@ def template(train_data, test_data, label, metric, problem_type=None, update_l1_
             y_test,
             l1_test_pred_proba,
             l2_test_pred_proba,
+            fold_indicator
             )

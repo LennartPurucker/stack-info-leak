@@ -5,3 +5,4 @@ RUN apt-get update && apt-get install build-essential swig python-dev -y && \
 
 RUN pip install s3fs
 RUN pip install --pre autogluon
+RUN pip install fairlearn
